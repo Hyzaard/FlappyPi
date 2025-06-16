@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Flappy - Mathematical Flappy Bird</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            color: white;
+        }
+        
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        canvas {
+            display: block;
+            background: linear-gradient(45deg, #0f0f23, #1a1a3a);
+        }
+        
+        .ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 16px;
+            color: #cccccc;
+            z-index: 10;
+        }
+        
+        .function-selector {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #4CAF50;
+            z-index: 30;
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        .function-option {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            background: linear-gradient(45deg, #2c3e50, #34495e);
+            border: 2px solid #4CAF50;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .function-option:hover {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            transform: scale(1.02);
+        }
+        
+        .function-option.selected {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border-color: #FFD700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        
+        .parameter-input {
+            margin: 20px 0;
+        }
+        
+        .parameter-input input {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            width: 100px;
+        }
+        
+        .parameter-input label {
+            display: block;
+            margin-bottom: 10px;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #4CAF50;
+            display: none;
+            z-index: 20;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .game-stats {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 10px;
+            border: 1px solid #4CAF50;
+        }
+        
+        .function-graph {
+            margin: 20px 0;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        /* Shake animation for giving feedback to the user */
+        .shake {
+            animation: horizontal-shake 0.5s;
+        }
+
+        @keyframes horizontal-shake {
+            10%, 90% { transform: translateX(-5px); }
+            20%, 80% { transform: translateX(5px); }
+            30%, 50%, 70% { transform: translateX(-5px); }
+            40%, 60% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Best: <span id="highScore">0</span></div>
+            <div id="currentFunction" style="color: #4CAF50; margin-top: 10px; display: none;"></div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="controls">
+            Press SPACEBAR or CLICK to make π fly up!
+        </div>
+        
+        <div id="functionSelector" class="function-selector">
+            <h2 style="color: #4CAF50; margin-bottom: 20px;">Choose Your Mathematical Function</h2>
+            <p style="margin-bottom: 25px;">Select a function type and parameter to control π's flight sensitivity:</p>
+            
+            <!-- FIXED: Pass the event object to the onclick handler -->
+            <button class="function-option" onclick="selectFunction('linear', event)">
+                <strong>Linear Function</strong><br>
+                f(x) = ax + b<br>
+                <em>Steady, predictable control</em>
+            </button>
+            
+            <button class="function-option" onclick="selectFunction('quadratic', event)">
+                <strong>Quadratic Function</strong><br>
+                f(x) = ax² + bx + c<br>
+                <em>Curved response, smooth acceleration</em>
+            </button>
+            
+            <button class="function-option" onclick="selectFunction('polynomial', event)">
+                <strong>Polynomial Function</strong><br>
+                f(x) = ax³ + bx² + cx + d<br>
+                <em>Complex curves, dramatic changes</em>
+            </button>
+            
+            <button class="function-option" onclick="selectFunction('exponential', event)">
+                <strong>Exponential Function</strong><br>
+                f(x) = a × e^(bx)<br>
+                <em>Explosive growth, powerful jumps</em>
+            </button>
+            
+            <button class="function-option" onclick="selectFunction('logarithmic', event)">
+                <strong>Logarithmic Function</strong><br>
+                f(x) = a × ln(bx + c)<br>
+                <em>Diminishing returns, gentle control</em>
+            </button>
+            
+            <div class="parameter-input">
+                <label for="parameterValue">Parameter Value (a):</label>
+                <input type="number" id="parameterValue" value="1" min="0.1" max="5" step="0.1" onchange="updateFunctionDisplay()">
+                <p style="font-size: 12px; color: #cccccc; margin-top: 5px;">
+                    Range: 0.1 to 5.0 (affects function intensity)
+                </p>
+            </div>
+            
+            <button id="startGameBtn" onclick="startGameWithFunction()" style="background: linear-gradient(45deg, #4CAF50, #45a049); font-size: 18px; padding: 15px 30px;">
+                Start Game
+            </button>
+        </div>
+        
+        <div id="gameOver" class="game-over">
+            <h2 style="color: #4CAF50;">Game Over!</h2>
+            
+            <div class="game-stats">
+                <h3>Game Summary</h3>
+                <p><strong>Final Score:</strong> <span id="finalScore">0</span></p>
+                <p><strong>Function Used:</strong> <span id="functionUsed"></span></p>
+                <p><strong>Parameter Value:</strong> <span id="parameterUsed"></span></p>
+                <p id="newRecord" style="color: #FFD700; display: none;">🎉 New Record! 🎉</p>
+            </div>
+            
+            <div class="function-graph">
+                <h4 style="margin: 10px 0; color: #4CAF50;">Function Visualization</h4>
+                <canvas id="functionCanvas" width="400" height="250"></canvas>
+            </div>
+            
+            <button onclick="restartGame()" style="font-size: 18px; padding: 15px 30px;">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Make canvas fullscreen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Game state
+        let gameRunning = false;
+        let gameStarted = false;
+        let gameInitialized = false;
+        let score = 0;
+        let highScore = 0;
+        let selectedFunction = null;
+        let parameterValue = 1;
+        
+        // Function sensitivity system - Player behavior matches function
+        const functionTypes = {
+            linear: (x, a) => Math.max(0.5, a * x * 0.1 + 1),
+            quadratic: (x, a) => Math.max(0.5, a * (x * x * 0.01) + 1),
+            polynomial: (x, a) => Math.max(0.5, a * (x * x * x * 0.001) + 1),
+            exponential: (x, a) => Math.max(0.5, a * Math.exp(x * 0.05) * 0.1 + 1),
+            logarithmic: (x, a) => Math.max(0.5, a * Math.log(Math.max(1, x)) * 0.3 + 1)
+        };
+        
+        // Pi player
+        const pi = {
+            x: canvas.width * 0.2,   
+            y: canvas.height / 2,
+            velocity: 0,
+            size: 40,
+            baseGravity: 0.25,
+            baseJump: -7,
+            currentGravity: 0.25,
+            currentJump: -7,
+            trail: []  
+        };
+        
+        // Obstacles
+        let obstacles = [];
+        const obstacleWidth = 80;
+        const obstacleSpeed = 2; // Slightly increased speed for more challenge
+        const obstacleGap = 320;      
+        
+        // Draw background grid
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
+            ctx.lineWidth = 1;
+            
+            // Vertical lines
+            for (let x = 0; x <= canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Horizontal lines
+            for (let y = 0; y <= canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+        }
+        
+        // Draw pi symbol
+        function drawPi() {
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `${pi.size}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 15;
+            ctx.fillText('π', pi.x, pi.y);
+            ctx.shadowBlur = 0;
+        }
+        
+        // Create obstacle
+        function createObstacle() {
+            const centerY = Math.random() * (canvas.height - obstacleGap - 200) + 100;
+            obstacles.push({
+                x: canvas.width,
+                centerY: centerY,
+                passed: false
+            });
+        }
+        
+        // Draw parabola
+        function drawParabola(x, centerY, isTop) {
+            ctx.strokeStyle = '#FF6B6B';
+            ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            if (isTop) {
+                for (let i = 0; i <= obstacleWidth; i += 2) {
+                    const relativeX = i - obstacleWidth / 2;
+                    const y = centerY - obstacleGap / 2 - (relativeX * relativeX) / 200;
+                    if (i === 0) ctx.moveTo(x + i, y);
+                    else ctx.lineTo(x + i, y);
+                }
+                ctx.lineTo(x + obstacleWidth, 0);
+                ctx.lineTo(x, 0);
+            } else {
+                for (let i = 0; i <= obstacleWidth; i += 2) {
+                    const relativeX = i - obstacleWidth / 2;
+                    const y = centerY + obstacleGap / 2 + (relativeX * relativeX) / 200;
+                    if (i === 0) ctx.moveTo(x + i, y);
+                    else ctx.lineTo(x + i, y);
+                }
+                ctx.lineTo(x + obstacleWidth, canvas.height);
+                ctx.lineTo(x, canvas.height);
+            }
+            
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+        
+        // Draw obstacles
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                drawParabola(obstacle.x, obstacle.centerY, true);
+                drawParabola(obstacle.x, obstacle.centerY, false);
+            });
+        }
+        
+        // Check collision
+        function checkCollision() {
+            if (pi.y >= canvas.height) return true;
+            
+            for (let obstacle of obstacles) {
+                if (pi.x + pi.size/2 > obstacle.x && pi.x - pi.size/2 < obstacle.x + obstacleWidth) {
+                    const topY = obstacle.centerY - obstacleGap / 2 - Math.pow((pi.x - obstacle.x - obstacleWidth/2), 2) / 200;
+                    const bottomY = obstacle.centerY + obstacleGap / 2 + Math.pow((pi.x - obstacle.x - obstacleWidth/2), 2) / 200;
+                    
+                    if (pi.y - pi.size/2 <= topY || pi.y + pi.size/2 >= bottomY) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // Calculate player behavior
+        function calculatePlayerBehavior() {
+            if (!selectedFunction || !gameRunning) return { gravity: pi.baseGravity, jump: pi.baseJump };
+            const time = Date.now() * 0.001;
+            const oscillation = Math.abs(Math.sin(time * 0.5)) * 5 + 1;
+            const sensitivity = functionTypes[selectedFunction](oscillation, parameterValue);
+            
+            let gravityMultiplier = 1;
+            let jumpMultiplier = 1;
+            
+            switch(selectedFunction) {
+                case 'linear':
+                    gravityMultiplier = sensitivity;
+                    jumpMultiplier = sensitivity;
+                    break;
+                case 'quadratic':
+                    gravityMultiplier = Math.pow(sensitivity, 0.8);
+                    jumpMultiplier = Math.pow(sensitivity, 1.2);
+                    break;
+                case 'polynomial':
+                    gravityMultiplier = sensitivity * (0.5 + 0.5 * Math.sin(time));
+                    jumpMultiplier = sensitivity * (0.8 + 0.4 * Math.cos(time * 1.5));
+                    break;
+                case 'exponential':
+                    const burst = Math.abs(Math.sin(time * 2)) > 0.7 ? sensitivity * 1.5 : sensitivity * 0.7;
+                    gravityMultiplier = burst;
+                    jumpMultiplier = burst;
+                    break;
+                case 'logarithmic':
+                    gravityMultiplier = 1 + (sensitivity - 1) * 0.6;
+                    jumpMultiplier = 1 + (sensitivity - 1) * 0.8;
+                    break;
+            }
+            
+            return {
+                gravity: pi.baseGravity * Math.max(0.3, Math.min(2, gravityMultiplier)),
+                jump: pi.baseJump * Math.max(0.3, Math.min(2, jumpMultiplier))
+            };
+        }
+        
+        function updatePhysics() {
+            const behavior = calculatePlayerBehavior();
+            pi.currentGravity = behavior.gravity;
+            pi.currentJump = behavior.jump;
+        }
+        
+        function updateTrail() {
+            pi.trail.push({ x: pi.x, y: pi.y, time: Date.now() });
+            const now = Date.now();
+            pi.trail = pi.trail.filter(point => now - point.time < 2000);
+        }
+        
+        function drawTrail() {
+            if (pi.trail.length < 2) return;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            for (let i = 1; i < pi.trail.length; i++) {
+                const alpha = i / pi.trail.length * 0.6;
+                ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+                ctx.lineWidth = 2 + (alpha * 2);
+                ctx.beginPath();
+                ctx.moveTo(pi.trail[i-1].x, pi.trail[i-1].y);
+                ctx.lineTo(pi.trail[i].x, pi.trail[i].y);
+                ctx.stroke();
+            }
+        }
+        
+        function drawFunctionGraph() {
+            const functionCanvas = document.getElementById('functionCanvas');
+            const fctx = functionCanvas.getContext('2d');
+            fctx.clearRect(0, 0, 400, 250);
+            
+            const centerX = 200, centerY = 125, scaleX = 30, scaleY = 30;
+            
+            fctx.strokeStyle = 'rgba(76, 175, 80, 0.3)';
+            fctx.lineWidth = 1;
+            for (let x = 0; x <= 400; x += 40) { fctx.beginPath(); fctx.moveTo(x, 0); fctx.lineTo(x, 250); fctx.stroke(); }
+            for (let y = 0; y <= 250; y += 25) { fctx.beginPath(); fctx.moveTo(0, y); fctx.lineTo(400, y); fctx.stroke(); }
+            
+            fctx.strokeStyle = '#4CAF50';
+            fctx.lineWidth = 2;
+            fctx.beginPath(); fctx.moveTo(0, centerY); fctx.lineTo(400, centerY); fctx.stroke();
+            fctx.beginPath(); fctx.moveTo(centerX, 0); fctx.lineTo(centerX, 250); fctx.stroke();
+            
+            fctx.strokeStyle = '#FFD700';
+            fctx.lineWidth = 3;
+            fctx.beginPath();
+            
+            let firstPoint = true;
+            for (let x = -6; x <= 6; x += 0.1) {
+                let y;
+                switch(selectedFunction) {
+                    case 'linear': y = parameterValue * x + 1; break;
+                    case 'quadratic': y = parameterValue * x * x + 1; break;
+                    case 'polynomial': y = parameterValue * x * x * x + 1; break;
+                    case 'exponential': y = (x > -10 && x < 3) ? parameterValue * Math.exp(0.5 * x) : NaN; break;
+                    case 'logarithmic': y = (x > 0.1) ? parameterValue * Math.log(x + 1) + 1 : NaN; break;
+                    default: y = x;
+                }
+                if (isNaN(y)) continue;
+                
+                const canvasX = centerX + x * scaleX;
+                const canvasY = centerY - y * scaleY;
+                
+                if (canvasY >= 0 && canvasY <= 250 && canvasX >= 0 && canvasX <= 400) {
+                    if (firstPoint) { fctx.moveTo(canvasX, canvasY); firstPoint = false; }
+                    else { fctx.lineTo(canvasX, canvasY); }
+                }
+            }
+            fctx.stroke();
+            
+            const functionEquations = {
+                linear: `f(x) = ${parameterValue}x + 1`,
+                quadratic: `f(x) = ${parameterValue}x² + 1`,
+                polynomial: `f(x) = ${parameterValue}x³ + 1`,
+                exponential: `f(x) = ${parameterValue}e^(0.5x)`,
+                logarithmic: `f(x) = ${parameterValue}ln(x+1) + 1`
+            };
+            
+            fctx.fillStyle = '#FFD700';
+            fctx.font = '14px Courier New';
+            fctx.textAlign = 'center';
+            fctx.fillText(functionEquations[selectedFunction] || '', 200, 20);
+        }
+        
+        function update() {
+            if (!gameRunning) return;
+            updatePhysics();
+            updateTrail();
+            
+            pi.velocity += pi.currentGravity;
+            pi.y += pi.velocity;
+            
+            obstacles.forEach((obstacle, index) => {
+                obstacle.x -= obstacleSpeed;
+                if (!obstacle.passed && obstacle.x + obstacleWidth < pi.x) {
+                    obstacle.passed = true;
+                    score++;
+                    document.getElementById('score').textContent = score;
+                }
+                if (obstacle.x + obstacleWidth < 0) {
+                    obstacles.splice(index, 1);
+                }
+            });
+            
+            if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - 500) {
+                createObstacle();
+            }
+            
+            if (checkCollision()) {
+                gameOver();
+            }
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            if (gameRunning) drawTrail();
+            drawObstacles();
+            drawPi();
+            
+            if (gameInitialized && !gameStarted) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.font = '24px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press SPACEBAR or CLICK to start!', canvas.width/2, canvas.height/2 + 100);
+            }
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function jump() {
+            if (!gameInitialized) return;
+            if (!gameStarted) startGame();
+            else if (gameRunning) pi.velocity = pi.currentJump;
+        }
+        
+        // FIXED: This function now correctly handles clicks on child elements inside the button.
+        function selectFunction(type, event) {
+            selectedFunction = type;
+            
+            document.querySelectorAll('.function-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            let clickedElement = event.target;
+            while (clickedElement && !clickedElement.classList.contains('function-option')) {
+                clickedElement = clickedElement.parentElement;
+            }
+            if (clickedElement) {
+                clickedElement.classList.add('selected');
+            }
+            
+            updateFunctionDisplay();
+        }
+        
+        function updateFunctionDisplay() {
+            if (!selectedFunction) return;
+            
+            const currentParam = parseFloat(document.getElementById('parameterValue').value) || 1;
+            const functionNames = {
+                linear: `Linear: f(x) = ${currentParam}x + 1`,
+                quadratic: `Quadratic: f(x) = ${currentParam}x² + 1`,
+                polynomial: `Polynomial: f(x) = ${currentParam}x³ + 1`,
+                exponential: `Exponential: f(x) = ${currentParam} × e^(0.1x)`,
+                logarithmic: `Logarithmic: f(x) = ${currentParam} × ln(x + 1)`
+            };
+            
+            document.getElementById('currentFunction').textContent = `Selected: ${functionNames[selectedFunction]}`;
+        }
+        
+        function startGameWithFunction() {
+            // FIXED: Replaced alert with a non-blocking visual cue.
+            if (!selectedFunction) {
+                const title = document.querySelector('#functionSelector h2');
+                title.classList.add('shake');
+                setTimeout(() => title.classList.remove('shake'), 500);
+                return;
+            }
+            
+            parameterValue = parseFloat(document.getElementById('parameterValue').value) || 1;
+            gameInitialized = true;
+            
+            updateFunctionDisplay();
+            
+            document.getElementById('functionSelector').style.display = 'none';
+            document.getElementById('currentFunction').style.display = 'block';
+            
+            gameStarted = false;
+            gameRunning = false;
+        }
+        
+        function startGame() {
+            gameStarted = true;
+            gameRunning = true;
+            score = 0;
+            pi.y = canvas.height / 2;
+            pi.velocity = 0;
+            obstacles = [];
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameOver').style.display = 'none';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            
+            let newRecord = false;
+            if (score > highScore) {
+                highScore = score;
+                newRecord = true;
+                document.getElementById('highScore').textContent = highScore;
+            }
+            
+            document.getElementById('finalScore').textContent = score;
+            
+            const functionNames = {
+                linear: 'Linear Function',
+                quadratic: 'Quadratic Function',
+                polynomial: 'Polynomial Function',
+                exponential: 'Exponential Function',
+                logarithmic: 'Logarithmic Function'
+            };
+            
+            document.getElementById('functionUsed').textContent = functionNames[selectedFunction] || 'N/A';
+            document.getElementById('parameterUsed').textContent = parameterValue;
+            document.getElementById('newRecord').style.display = newRecord ? 'block' : 'none';
+            
+            drawFunctionGraph();
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            gameStarted = false;
+            gameRunning = false;
+            gameInitialized = false;
+            score = 0;
+            pi.y = canvas.height / 2;
+            pi.velocity = 0;
+            pi.trail = [];
+            obstacles = [];
+            selectedFunction = null;
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('functionSelector').style.display = 'block';
+            document.getElementById('currentFunction').style.display = 'none';
+            document.getElementById('parameterValue').value = 1;
+            
+            document.querySelectorAll('.function-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        
+        canvas.addEventListener('click', jump);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        });
+        
+        // Start the game loop
+        gameLoop();
+    </script>
+</body>
+</html>
